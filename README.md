@@ -8,9 +8,14 @@ rm-urm is Linux based utility which is based on GNU C to remove file permanently
 ```
 **Options**
 ```
--s  : secure removal of file by rewritting bytes with **_NULL** or with anything
+-s  : secure removal of file by rewritting bytes with NULL or with anything
 -i  : let enable interactive mode so user can remove files interactively
 -d  : to remove directory recursively
 -fg : to get a file which is deleted intentionally or unintentionaly
 -dg : to get a directory which is deleted intentionally or unintentionaly  
 ```
+**Install/Uninstall Procedure**
+```
+1. make
+2. make clean
+3. make install
