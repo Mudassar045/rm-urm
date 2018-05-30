@@ -22,10 +22,11 @@
 
 extern int errno;
 int isFile(char *filename);
-int isDir(char *dirname);
+int isDirectory(char *dirname);
 int isRegularFile(char *filename);
 int isEmpty(char *filename);
 int makeTempDir(char *dirname);
+int isDirEmpty(char *dirname);
 int main(int argc, char **args)
 {
   char choice;
@@ -39,7 +40,7 @@ int main(int argc, char **args)
   {
     fprintf(stderr, "rm: missing operands\nTry 'rm --help' for more information.\n");
   }
-  else if (argc == 2 && isFile(args[1]))
+  else if (argc == 2 && isFile(args[1]) == 0)
   {
     int rv = removeFile(args[1]);
     if (rv == 0)
@@ -48,14 +49,26 @@ int main(int argc, char **args)
     }
     else
     {
-      fprintf(stderr, "rm: unable to delete a file\n");
+      fprintf(stderr, "mdrm: unable to delete a file\n");
     }
   }
-  else if (argc == 2 && isDir(args[1]))
+  else if (argc == 2 && isDirectory(args[1]) == 0)
   {
-    removeDir(args[1]);
+    if (isDirEmpty(args[1]) == 0)
+    {
+      int rv = removeDir(args[1]);
+      if(rv ==0) return 0;
+      else
+      {
+        printf("mdrm: failed to remove '%s' directory\n", args[1]);
+      }
+    }
+    else
+    {
+      printf("mdrm: failed to remove '%s': Directory not empty\n", args[1]);
+    }
   }
-  else if (argc == 3 && isFile(args[1]) && strcmp(args[2], "-i") == 0)
+  else if (argc == 3 && isFile(args[1]) == 0 && strcmp(args[2], "-i") == 0)
   {
     if (isRegularFile(args[1]) == 0)
     {
@@ -91,7 +104,7 @@ int main(int argc, char **args)
       return 0;
     }
   }
-  else if (argc == 3 && isFile(args[1]) && strcmp(args[2], "-fg") == 0)
+  else if (argc == 3 && isFile(args[1]) == 0 && strcmp(args[2], "-fg") == 0)
   {
 
     int rv = getFile(args[1]);
@@ -101,10 +114,14 @@ int main(int argc, char **args)
     }
     else
     {
-      printf("urm: unable to locate %s file or directory\n",args[1]);
+      printf("urm: unable to locate %s file or directory\n", args[1]);
       return 0;
     }
   }
+  else if (argc == 3 && isDirectory(args[1] == 0 && strcmp(args[2], "-rd")))
+  {
+  }
+
   return 0;
 }
 int makeTempDir(char *dirname)
@@ -114,11 +131,37 @@ int makeTempDir(char *dirname)
 }
 int isFile(char *filename)
 {
-  return 1;
+  struct stat fs;
+  int rv = stat(filename, &fs);
+  if (rv == 0)
+  {
+    int t_mode = fs.st_mode;
+    if (S_ISREG(t_mode))
+      return 0;
+    return -1;
+  }
+  else
+  {
+    perror("stat");
+    exit(rv);
+  }
 }
-int isDir(char *dirname)
+int isDirectory(char *dirname)
 {
-  return 1;
+  struct stat fs;
+  int rv = stat(dirname, &fs);
+  if (rv == 0)
+  {
+    int t_mode = fs.st_mode;
+    if (S_ISDIR(t_mode))
+      return 0;
+    return -1;
+  }
+  else
+  {
+    perror("stat");
+    exit(rv);
+  }
 }
 int isRegularFile(char *filename)
 {
@@ -129,7 +172,7 @@ int isRegularFile(char *filename)
     int t_mode = fs.st_mode;
     if (S_ISREG(t_mode))
       return 0;
-    return 0;
+    return -1;
   }
   else
   {
@@ -140,4 +183,40 @@ int isRegularFile(char *filename)
 int isEmpty(char *filename)
 {
   return 1;
+}
+int isDirEmpty(char *dirname)
+{
+  DIR *dp = opendir(dirname);
+  int hasContent = 0;
+  errno = 0;
+  struct dirent *entry;
+  if (dp == NULL)
+  {
+    fprintf(stderr, "mdrm: failed to remove '%s': No such file or directory", dirname);
+    exit(0);
+  }
+  while (1)
+  {
+    entry = readdir(dp);
+    if (entry != NULL && errno != 0)
+    {
+      fprintf(stderr,"mdrm: failed to remove '%s': No such file or directory",dirname);
+      exit(0);
+    }
+    if (entry == NULL && errno == 0)
+    {
+      fprintf(stderr,"mdrm: failed to remove '%s': No such file or directory",dirname);
+      exit(0);
+    }
+    else
+    {
+      //checck for hidden items
+      if (entry->d_name[0] == '.')
+        continue;
+      hasContent++;
+    }
+  }
+  if(hasContent!=0) return -1;
+  return 0;
+  closedir(dp);
 }
